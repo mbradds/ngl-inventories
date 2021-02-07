@@ -7,8 +7,16 @@ body {
 .col {
   border: 2px solid lightblue;
 } */
+input[type="radio"] {
+  display: table-cell;
+  vertical-align: middle;
+}
 .ngl-nav {
   border: 2px solid lightblue;
+}
+.ngl-input {
+  height: 100px;
+  overflow-y: scroll;
 }
 .header {
   font-family: Arial;

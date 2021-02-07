@@ -23,29 +23,66 @@
         <h1>NGL Inventory Tracker</h1>
       </div>
     </div>
-
     <div class="container">
-      <div class="row justify-content-center">
-        <div class="col ngl-nav">
+      <div class="row justify-content-center ngl-nav">
+        <div class="col">
           <form action="/region" method="POST">
-            {% for n in my_list %}
-            <!-- <li>{{n}}</li> -->
-            <input
-              type="radio"
-              id="{{n.lower()}}"
-              name="region"
-              value="{{n}}"
-            />
-            <label for="{{n.lower()}}">{{n}}</label>
-            {% endfor %}
-            <input type="submit" />
+            <div class="row">
+              <div class="col-3 ngl-input">
+                {% for r in region_list %} {% if r == region %}
+
+                <input
+                  type="radio"
+                  id="{{r.lower()}}"
+                  name="region"
+                  value="{{r}}"
+                  checked="checked"
+                />
+                {% else %}
+
+                <input
+                  type="radio"
+                  id="{{r.lower()}}"
+                  name="region"
+                  value="{{r}}"
+                />
+                {% endif %}
+                <label for="{{r.lower()}}">{{r}}</label><br />
+
+                {% endfor %}
+              </div>
+              <div class="col-3 ngl-input">
+                {% for y in year_list %} {% if y[-1]%}
+                <input
+                  type="checkbox"
+                  id="year_{{y[0]}}"
+                  name="year"
+                  value="{{y[0]}}"
+                  checked="checked"
+                />
+                {% else %}
+                <input
+                  type="checkbox"
+                  id="year_{{y[0]}}"
+                  name="year"
+                  value="{{y[0]}}"
+                />
+                {% endif %}
+                <label for="year+{{y[0]}}">{{y[0]}}</label><br />
+                {% endfor %}
+              </div>
+              <div class="col-6">
+                <input type="submit" />
+              </div>
+            </div>
           </form>
         </div>
       </div>
       <div class="row justify-content-center">
         <div class="col image-column">
           <img
-            src="{{ url_for('static',filename='images/'+region+'.png') }}"
+            class="NO-CACHE"
+            src="{{ url_for('static',filename='images/'+region.replace(' ','')+'.png') }}"
             alt=""
           />
         </div>
@@ -58,5 +95,11 @@
       integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW"
       crossorigin="anonymous"
     ></script>
+    <script>
+      var nods = document.getElementsByClassName("NO-CACHE");
+      for (var i = 0; i < nods.length; i++) {
+        nods[i].attributes["src"].value += "?a=" + Math.random();
+      }
+    </script>
   </body>
 </html>

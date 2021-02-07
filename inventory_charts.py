@@ -7,12 +7,10 @@ import os
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 script_dir = os.path.dirname(__file__)
-matplotlib.use('Agg')
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
 #%%
 
 plt.rcParams.update({'font.size': 17})
-link = 'https://www.cer-rec.gc.ca/nrg/sttstc/ntrlgslqds/stt/2020lqdptrlmgs.xlsx'
 
 cer_products = ['Spec. propane',
                 'Total butane',
@@ -22,8 +20,8 @@ cer_products = ['Spec. propane',
                 'C4 in mix',
                 'Other in mix']
 
-CER = {'Night Sky': '#054169',
-       'Sun': '#FFBE4B',
+CER = {'Sun': '#FFBE4B',
+       'Night Sky': '#054169',
        'Ocean': '#5FBEE6',
        'Forest': '#559B37',
        'Flame': '#FF821E',
@@ -43,6 +41,9 @@ text = {'5YearAvg': {'eng': 'Five year average', 'fra': 'Moyenne sur cinq ans'},
         'cnStrike': {'eng': 'CN strike start (Nov 19, 2019)', 'fra': 'Début de la grève du CN (19 novembre 2019)'},
         'who': {'eng': 'WHO declares public health emergency (Jan 30, 2020)', 'fra': 'Urgence de santé publique déclarée par l’OMS (30 janvier 2020)'}
         }
+
+
+mode = "prod"
 
 
 def english_only(col_names):
@@ -97,10 +98,19 @@ def merge_data(regions, region='Canada', product='Spec. propane'):
     return [average, maximum, minimum]
 
 
-def scrape_cer():
-    link = 'https://www.cer-rec.gc.ca/en/data-analysis/energy-commodities/natural-gas-liquids/statistics/YYYYlqdptrlmgs.xlsx'
-    current_year = datetime.now().year
-    current_link = link.replace('YYYY', str(current_year))
+def scrape_cer(remote=False):
+    if mode == "prod":
+        matplotlib.use("Agg")
+
+    if remote:
+        link = 'https://www.cer-rec.gc.ca/en/data-analysis/energy-commodities/natural-gas-liquids/statistics/YYYYlqdptrlmgs.xlsx'
+        current_year = datetime.now().year
+        current_link = link.replace('YYYY', str(current_year))
+        print('retrieved remote data')
+    else:
+        current_link = "./2021lqdptrlmgs.xlsx"
+        print('retrieved local data')
+
     try:
         df = pd.read_excel(current_link, sheet_name='Data')
     except:
@@ -115,6 +125,15 @@ def scrape_cer():
     return regions
 
 
+def get_valid_years(regions, region, init=2):
+    all_years = sorted(list(set([x.year for x in regions[region]['Date']])), reverse=True)
+    if type(init) is list:
+        selected_years = init
+    else:
+        selected_years = all_years[:init]
+    return [[y, True] if y in selected_years else [y, False] for y in all_years]
+
+
 def filter_data(regions, region='US Midwest', product='Spec. propane', year=2019):
     df = regions[region]
     df = df[df['Date'].dt.year == year]
@@ -125,7 +144,14 @@ def filter_data(regions, region='US Midwest', product='Spec. propane', year=2019
     return df
 
 
-def graph(regions, product='Spec. propane', region='Eastern Canada', lang='eng'):
+def graph(regions,
+          product='Spec. propane',
+          region='Eastern Canada',
+          lang='eng',
+          years='init'):
+
+    fiveYearAvgColor = CER['Forest']
+    fiveYearRangeColor = CER['Ocean']
 
     if region == "Eastern Canada":
         title = "Ontario"
@@ -134,45 +160,42 @@ def graph(regions, product='Spec. propane', region='Eastern Canada', lang='eng')
     else:
         title = region
 
+    def add_year_line(year, ax, color):
+        yearLine = filter_data(regions, region, product, year=int(year))
+        ax.plot(yearLine, linestyle='dashed', marker='o', label=str(year), color=color, linewidth=3.0)
+
     data = merge_data(regions, region, product)
     average, maximum, minimum = data[0], data[1], data[2]
-    # average,maximum,minimum = merge_data(regions,region,product)
     fig = plt.figure()
     fig = plt.figure(figsize=(15, 7), dpi=80)
     ax = fig.add_subplot(1, 1, 1)
     # 1) plot the five year average line
-    ax.plot(average, label=text['5YearAvg'][lang], color=CER['Forest'], linewidth=5.0)
+    ax.plot(average, label=text['5YearAvg'][lang], color=fiveYearAvgColor, linewidth=5.0)
     x = minimum.index
     # 2) plot the five year range
-    ax.fill_between(x, minimum, maximum, alpha=0.4, color=CER['Ocean'], label=text['5YearRange'][lang])
+    ax.fill_between(x, minimum, maximum, alpha=0.4, color=fiveYearRangeColor, label=text['5YearRange'][lang])
     # 3) plot the year lines
-    year_2020 = filter_data(regions, region, product, year=2020)
-    year_2019 = filter_data(regions, region, product, year=2019)
-    ax.plot(year_2019, linestyle='dashed', marker='o', label="2019", color=CER['Night Sky'], linewidth=3.0)
-    ax.plot(year_2020, linestyle='dashed', marker='o', label="2020", color=CER['Flame'], linewidth=3.0)
+    if years == "init":
+        years = get_valid_years(regions, region)
+    lineColorList = [c for c in CER.values() if c not in [fiveYearAvgColor, fiveYearRangeColor]]
+    for colorIndex, y in enumerate(years):
+        if y[-1]:
+            add_year_line(y[0], ax, lineColorList[colorIndex])
 
     # set graph dimensions,etc
-    # ax.set_ylim(ymin=0, ymax=10)
+    ax.set_ylim(ymin=0)
     ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
     ax.set_xticklabels(text['months'][lang])
-    ax.legend(loc='upper left')
+    ax.legend(loc='lower right')
+    # ax.legend(loc='best')
     ax.set_ylabel(text['millionbbl'][lang])
     plt.title(title)
-    fig.savefig(os.path.join(script_dir,'static','images',region.replace(' ','')+'.png'))
-    # plt.show()
+    fig.savefig(os.path.join(script_dir, 'static', 'images', region.replace(' ', '')+'.png'))
+    if mode == "dev":
+        plt.show()
 
-
-def all_graphs(regions, areas=['Canada','Eastern Canada','Western Canada'],lang='eng'):
-    for area in areas:
-        try:
-            graph(regions, region=area, lang=lang)
-        except:
-            print(area)
 
 if __name__ == "__main__":
     regions = scrape_cer()
-    graph(regions, region='Canada')
+    graph(regions, region='Canada', years="init")
     # all_graphs(regions,areas=['Eastern Canada','Western Canada'],lang='fra')
-
-
-#%%
