@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 from dateutil.relativedelta import relativedelta
 import os
 import ssl
+import math
 ssl._create_default_https_context = ssl._create_unverified_context
 script_dir = os.path.dirname(__file__)
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
@@ -12,13 +13,6 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleW
 
 plt.rcParams.update({'font.size': 17})
 
-cer_products = ['Spec. propane',
-                'Total butane',
-                'Total mix',
-                'C2 in mix',
-                'C3 in mix',
-                'C4 in mix',
-                'Other in mix']
 
 CER = {'Sun': '#FFBE4B',
        'Night Sky': '#054169',
@@ -26,7 +20,6 @@ CER = {'Sun': '#FFBE4B',
        'Forest': '#559B37',
        'Flame': '#FF821E',
        'Aubergine': '#871455',
-       'White': '#FFFFFF',
        'Dim Grey': '#8c8c96',
        'Cool Grey': '#42464B'}
 
@@ -119,6 +112,7 @@ def scrape_cer(remote=False):
 
     # remove the french text and switch units to million barrels.
     df = df.rename(columns=english_only(df.columns))
+    df = df.rename(columns={'Total butane': 'Butane'})
     df['Region'] = df['Region'].replace(english_only(df['Region'].unique()))
     df = change_units(df)
     regions = create_regions(df)
@@ -132,6 +126,15 @@ def get_valid_years(regions, region, init=2):
     else:
         selected_years = all_years[:init]
     return [[y, True] if y in selected_years else [y, False] for y in all_years]
+
+
+def get_valid_product(products, new_product):
+    for p in products:
+        if p[0] == new_product:
+            p[-1] = True
+        else:
+            p[-1] = False
+    return products
 
 
 def filter_data(regions, region='US Midwest', product='Spec. propane', year=2019):
@@ -177,7 +180,14 @@ def graph(regions,
     # 3) plot the year lines
     if years == "init":
         years = get_valid_years(regions, region)
-    lineColorList = [c for c in CER.values() if c not in [fiveYearAvgColor, fiveYearRangeColor]]
+
+    if len(years) > len(CER.values()):
+        color_multiple = math.ceil(len(years)/len(CER.values()))
+        all_colors = list(CER.values())*color_multiple
+    else:
+        all_colors = CER.values()
+
+    lineColorList = [c for c in all_colors if c not in [fiveYearAvgColor, fiveYearRangeColor]]
     for colorIndex, y in enumerate(years):
         if y[-1]:
             add_year_line(y[0], ax, lineColorList[colorIndex])
@@ -197,5 +207,5 @@ def graph(regions,
 
 if __name__ == "__main__":
     regions = scrape_cer()
-    graph(regions, region='Canada', years="init")
+    graph(regions, product='Spec. propane', region='Canada', years="init")
     # all_graphs(regions,areas=['Eastern Canada','Western Canada'],lang='fra')
